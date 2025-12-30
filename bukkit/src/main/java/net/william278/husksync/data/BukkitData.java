@@ -38,11 +38,7 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
-//#if MC==12001
-//$$ import org.bukkit.inventory.EquipmentSlot;
-//#else
 import org.bukkit.inventory.EquipmentSlotGroup;
-//#endif
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.Plugin;
@@ -524,8 +520,18 @@ public abstract class BukkitData implements Data {
             try {
                 switch (type) {
                     case UNTYPED -> player.setStatistic(stat, value);
-                    case BLOCK, ITEM -> player.setStatistic(stat, Objects.requireNonNull(matchMaterial(key[0])), value);
-                    case ENTITY -> player.setStatistic(stat, Objects.requireNonNull(matchEntityType(key[0])), value);
+                    case BLOCK, ITEM -> {
+                        Material material = matchMaterial(key.length > 0 ? key[0] : null);
+                        if (material != null) {
+                            player.setStatistic(stat, material, value);
+                        }
+                    }
+                    case ENTITY -> {
+                        EntityType entity = matchEntityType(key.length > 0 ? key[0] : null);
+                        if (entity != null) {
+                            player.setStatistic(stat, entity, value);
+                        }
+                    }
                 }
             } catch (Throwable a) {
                 plugin.log(Level.WARNING, "Failed to apply statistic " + id, a);
@@ -610,33 +616,19 @@ public abstract class BukkitData implements Data {
                     instance.getBaseValue(),
                     instance.getModifiers().stream()
                             .filter(modifier -> !settings.isIgnoredModifier(modifier.getName()))
-                            //#if MC==12001
-                            //$$ .filter(modifier -> modifier.getSlot() == null)
-                            //#else
                             .filter(modifier -> modifier.getSlotGroup() != EquipmentSlotGroup.ANY)
-                            //#endif
                             .map(BukkitData.Attributes::adapt).collect(Collectors.toSet())
             );
         }
 
         @NotNull
         private static Modifier adapt(@NotNull AttributeModifier modifier) {
-            //#if MC==12001
-            //$$ return new Modifier(
-            //$$        modifier.getUniqueId(),
-            //$$        modifier.getName(),
-            //$$        modifier.getAmount(),
-            //$$        modifier.getOperation().ordinal(),
-            //$$        modifier.getSlot() != null ? modifier.getSlot().ordinal() : -1
-            //$$ );
-            //#else
             return new Modifier(
                     modifier.getKey().toString(),
                     modifier.getAmount(),
                     modifier.getOperation().ordinal(),
                     modifier.getSlotGroup().toString()
             );
-            //#endif
         }
 
         private static void applyAttribute(@Nullable AttributeInstance instance, @Nullable Attribute attribute) {
@@ -656,22 +648,12 @@ public abstract class BukkitData implements Data {
 
         @NotNull
         private static AttributeModifier adapt(@NotNull Modifier modifier) {
-            //#if MC==12001
-            //$$ return new AttributeModifier(
-            //$$        modifier.uuid(),
-            //$$        modifier.name(),
-            //$$        modifier.amount(),
-            //$$        AttributeModifier.Operation.values()[modifier.operation()],
-            //$$        modifier.equipmentSlot() != -1 ? EquipmentSlot.values()[modifier.equipmentSlot()] : null
-            //$$ );
-            //#else
             return new AttributeModifier(
                     Objects.requireNonNull(NamespacedKey.fromString(modifier.name())),
                     modifier.amount(),
                     AttributeModifier.Operation.values()[modifier.operation()],
                     Optional.ofNullable(EquipmentSlotGroup.getByName(modifier.slotGroup())).orElse(EquipmentSlotGroup.ANY)
             );
-            //#endif
         }
 
         @Override

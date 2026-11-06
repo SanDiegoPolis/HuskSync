@@ -149,8 +149,7 @@ public class BukkitHuskSync extends JavaPlugin implements HuskSync, BukkitTask.S
 
         // Preload NBT-API
         if (!NBT.preloadApi()) {
-            log(Level.SEVERE, "Failed to load NBT API. HuskSync will not be initialized!");
-            return;
+            log(Level.WARNING, "Failed to load NBT API (unrecognized server version). NBT features may not work correctly!");
         }
 
         // Register commands
@@ -237,12 +236,19 @@ public class BukkitHuskSync extends JavaPlugin implements HuskSync, BukkitTask.S
         // Handle shutdown
         this.disabling = true;
 
-        // Close the event listener / data syncer
+        // Complete player saves, including any other pending async saves
+        if (this.eventListener != null) {
+            this.eventListener.handlePluginDisable();
+        }
+
+        // Clear Redis checkout state after snapshots are correctly persisted
         if (this.dataSyncer != null) {
             this.dataSyncer.terminate();
         }
+
+        // Close DB/Redis connections after checkout state is cleared
         if (this.eventListener != null) {
-            this.eventListener.handlePluginDisable();
+            this.eventListener.closeConnections();
         }
 
         // Unregister API and cancel tasks
@@ -261,7 +267,7 @@ public class BukkitHuskSync extends JavaPlugin implements HuskSync, BukkitTask.S
     @Override
     @NotNull
     public Set<OnlineUser> getOnlineUsers() {
-        return getServer().getOnlinePlayers().stream()
+        return new ArrayList<>(getServer().getOnlinePlayers()).stream()
                 .map(player -> BukkitUser.adapt(player, this))
                 .collect(Collectors.toSet());
     }

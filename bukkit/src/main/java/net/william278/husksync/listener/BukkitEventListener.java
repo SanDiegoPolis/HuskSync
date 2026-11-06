@@ -30,6 +30,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.MapInitializeEvent;
 import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.inventory.ItemStack;
@@ -42,6 +43,7 @@ public class BukkitEventListener extends EventListener implements BukkitJoinEven
         BukkitDeathEventListener, Listener {
 
     protected LockedHandler lockedHandler;
+    private volatile boolean lateQuitListenerRegistered;
 
     public BukkitEventListener(@NotNull BukkitHuskSync plugin) {
         super(plugin);
@@ -54,6 +56,22 @@ public class BukkitEventListener extends EventListener implements BukkitJoinEven
     public void onEnable() {
         getPlugin().getServer().getPluginManager().registerEvents(this, getPlugin());
         lockedHandler.onEnable();
+        registerLateQuitListener();
+    }
+
+    // Register a "late quit" listener on the next tick, after other plugins have registered their listeners
+    protected final void registerLateQuitListener() {
+        getPlugin().runSync(() -> {
+            getPlugin().getServer().getPluginManager().registerEvent(PlayerQuitEvent.class, new Listener() {
+            }, EventPriority.MONITOR, (listener, event) -> handlePlayerQuitMonitor(
+                    BukkitUser.adapt(((PlayerQuitEvent) event).getPlayer(), getPlugin())), getPlugin(), true);
+            lateQuitListenerRegistered = true;
+        });
+    }
+
+    @Override
+    public boolean isLateQuitListenerRegistered() {
+        return lateQuitListenerRegistered;
     }
 
     public void handlePluginDisable() {
@@ -93,6 +111,11 @@ public class BukkitEventListener extends EventListener implements BukkitJoinEven
     }
 
     @Override
+    public void saveOnPlayerQuit(@NotNull BukkitUser bukkitUser) {
+        super.saveOnPlayerQuit(bukkitUser);
+    }
+
+    @Override
     public void handlePlayerJoin(@NotNull BukkitUser bukkitUser) {
         super.handlePlayerJoin(bukkitUser);
     }
@@ -127,9 +150,9 @@ public class BukkitEventListener extends EventListener implements BukkitJoinEven
         }
 
         // Handle saving player data snapshots when the world saves
-        plugin.runAsync(() -> super.saveOnWorldSave(event.getWorld().getPlayers()
+        super.saveOnWorldSave(event.getWorld().getPlayers()
                 .stream().map(player -> BukkitUser.adapt(player, plugin))
-                .collect(Collectors.toList())));
+                .collect(Collectors.toList()));
     }
 
     @EventHandler(ignoreCancelled = true)

@@ -4,7 +4,7 @@ This page contains the configuration structure for HuskSync.
 📁 `plugins/HuskSync/`
 - 📄 `config.yml`: General plugin configuration
 - 📄 `server.yml`: Server ID configuration
-- 📄 `messages-xx-xx.yml`: Plugin locales, formatted in MineDown (see [[Translations]])
+- 📄 `messages-xx-xx.yml`: Plugin locales, formatted in MiniMessage (see [[Translations]])
 
 ## Example files
 <details>
@@ -159,7 +159,8 @@ synchronization:
     # Which attribute modifiers should not be saved when syncing users. Supports wildcard matching.
     # (e.g. ['minecraft:effect.speed', 'minecraft:effect.*'])
     ignored_modifiers: ['minecraft:effect.*', 'minecraft:creative_mode_*']
-  # Event priorities for listeners (HIGHEST, NORMAL, LOWEST). Change if you encounter plugin conflicts
+  # Event priorities for listeners (HIGHEST, NORMAL, LOWEST, MONITOR). Change if you encounter plugin conflicts
+  # MONITOR is not recommended, only use it for plugins that need HuskSync to run after them, e.g. combat loggers
   event_priorities:
     quit_listener: LOWEST
     join_listener: LOWEST
